@@ -1,21 +1,18 @@
 package iris
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
-	"reflect"
 	"strings"
 	"time"
 
 	"github.com/mitchellh/mapstructure"
+	"github.com/random-guys/go-siber"
 	"github.com/random-guys/go-siber/jwt"
-	"github.com/tsaron/siber"
-	"github.com/tsaron/siber/jwt"
 )
 
 type Config struct {
@@ -70,7 +67,7 @@ type Client struct {
 }
 
 type jSendSuccess struct {
-	Data interface{} `json:"data"`
+	Data map[string]interface{} `json:"data" mapstructure:"data"`
 }
 
 // Bearer creates IrisOptions that will replicate the session of the
@@ -163,21 +160,17 @@ func GetErr(res *http.Response) error {
 	return err
 }
 
-func GetResponse(res *http.Response, v interface{}) (interface{}, error) {
-	var buffer bytes.Buffer
-	bodyReader := io.TeeReader(res.Body, &buffer)
-
+func GetResponse(res *http.Response, v interface{}) error {
 	var j jSendSuccess
-	err := json.NewDecoder(bodyReader).Decode(&j)
+	err := json.NewDecoder(res.Body).Decode(&j)
 	if err != nil {
-		return err, nil
+		return err
 	}
 
-	reflect.TypeOf(v)
-	err = mapstructure.Decode(j.Data, &v)
+	err = mapstructure.Decode(j, &v)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	return v, nil
+	return nil
 }
