@@ -17,6 +17,7 @@ require (
 	github.com/rs/cors v1.7.0
 	github.com/rs/zerolog v1.19.0
 	github.com/satori/go.uuid v1.2.0
+	github.com/segmentio/encoding v0.1.15
 	golang.org/x/crypto v0.0.0-20200820211705-5c72a883971a
 	syreclabs.com/go/faker v1.2.2
 )

@@ -1,14 +1,19 @@
 package iris
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"reflect"
 	"strings"
 	"time"
 
+	"github.com/mitchellh/mapstructure"
+	"github.com/tsaron/siber"
 	"github.com/tsaron/siber/jwt"
 )
 
@@ -61,6 +66,10 @@ type Client struct {
 	scheme           string
 	headlessDuration time.Duration
 	token            string
+}
+
+type jSendSuccess struct {
+	Data interface{} `json:"data"`
 }
 
 // Bearer creates IrisOptions that will replicate the session of the
@@ -139,4 +148,35 @@ func (c *Client) NewRequestWithContext(ctx context.Context, r *http.Request, met
 	req.Header.Set("Authorization", fmt.Sprintf("%s %s", c.scheme, c.token))
 
 	return req, nil
+}
+
+func GetErr(res *http.Response) error {
+	if res.StatusCode < 400 {
+		return nil
+	}
+
+	var err siber.JSendError
+	if err := json.NewDecoder(res.Body).Decode(&err); err != nil {
+		panic(err)
+	}
+	return err
+}
+
+func GetResponse(res *http.Response, v interface{}) (interface{}, error) {
+	var buffer bytes.Buffer
+	bodyReader := io.TeeReader(res.Body, &buffer)
+
+	var j jSendSuccess
+	err := json.NewDecoder(bodyReader).Decode(&j)
+	if err != nil {
+		return err, nil
+	}
+
+	reflect.TypeOf(v)
+	err = mapstructure.Decode(j.Data, &v)
+	if err != nil {
+		return nil, err
+	}
+
+	return v, nil
 }
