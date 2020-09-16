@@ -30,7 +30,7 @@ func SendSuccess(r *http.Request, w http.ResponseWriter, v interface{}) {
 }
 
 // SendError sends a JSON error message
-func SendError(r *http.Request, w http.ResponseWriter, err APIError) {
+func SendError(r *http.Request, w http.ResponseWriter, err JSendError) {
 	log := zerolog.Ctx(r.Context())
 	raw := getJSON(log, err)
 
