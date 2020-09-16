@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/mitchellh/mapstructure"
+	"github.com/random-guys/go-siber/jwt"
 	"github.com/tsaron/siber"
 	"github.com/tsaron/siber/jwt"
 )
