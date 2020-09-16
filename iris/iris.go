@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/tsaron/anansi/jwt"
+	"github.com/tsaron/siber/jwt"
 )
 
 type Config struct {
@@ -49,7 +49,6 @@ func New(conf Config) Client {
 
 	return Client{
 		service:          conf.Service,
-		claimsKey:        conf.ClaimsKey,
 		secret:           conf.Secret,
 		scheme:           conf.Scheme,
 		headlessDuration: conf.HeadlessDuration,
@@ -58,7 +57,6 @@ func New(conf Config) Client {
 
 type Client struct {
 	secret           []byte
-	claimsKey        string
 	service          string
 	scheme           string
 	headlessDuration time.Duration
@@ -84,7 +82,7 @@ func (c Client) Bearer(r *http.Request) (*Client, error) {
 // Headless creates a token to be used with the pre-existing scheme that has
 // been set. Make sure to use it off your base Client
 func (c Client) Headless(v interface{}) (*Client, error) {
-	token, err := jwt.Encode(c.claimsKey, c.secret, c.headlessDuration, v)
+	token, err := jwt.EncodeEmbedded(c.secret, c.headlessDuration, v)
 	if err != nil {
 		return nil, err
 	}
