@@ -167,7 +167,17 @@ func GetResponse(res *http.Response, v interface{}) error {
 		return err
 	}
 
-	err = mapstructure.Decode(j, &v)
+	config := &mapstructure.DecoderConfig{
+		WeaklyTypedInput: true,
+		Result:           &v,
+	}
+
+	decoder, err := mapstructure.NewDecoder(config)
+	if err != nil {
+		panic(err)
+	}
+
+	err = decoder.Decode(j.Data)
 	if err != nil {
 		return err
 	}
