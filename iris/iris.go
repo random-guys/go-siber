@@ -3,7 +3,6 @@ package iris
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -11,6 +10,7 @@ import (
 	"time"
 
 	"github.com/mitchellh/mapstructure"
+	"github.com/pkg/errors"
 	"github.com/random-guys/go-siber"
 	"github.com/random-guys/go-siber/jwt"
 )
@@ -155,7 +155,7 @@ func GetErr(res *http.Response) error {
 
 	var err siber.JSendError
 	if err := json.NewDecoder(res.Body).Decode(&err); err != nil {
-		panic(err)
+		return err
 	}
 	return err
 }
@@ -164,7 +164,7 @@ func GetResponse(res *http.Response, v interface{}) error {
 	var j jSendSuccess
 	err := json.NewDecoder(res.Body).Decode(&j)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "error decoding into jSend")
 	}
 
 	config := &mapstructure.DecoderConfig{
@@ -175,7 +175,7 @@ func GetResponse(res *http.Response, v interface{}) error {
 
 	decoder, err := mapstructure.NewDecoder(config)
 	if err != nil {
-		panic(err)
+		return errors.Wrap(err, "error creating decoder")
 	}
 
 	err = decoder.Decode(j.Data)
