@@ -47,7 +47,7 @@ func TestGetResponse(t *testing.T) {
 	t.Run("It should decode array response", func(t *testing.T) {
 		b, err := json.Marshal(map[string]interface{}{
 			"data": map[string]interface{}{
-				"values": emails,
+				"emails": emails,
 			},
 		})
 		if err != nil {

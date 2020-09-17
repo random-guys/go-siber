@@ -67,7 +67,7 @@ type Client struct {
 }
 
 type jSendSuccess struct {
-	Data map[string]interface{} `json:"data" mapstructure:"data"`
+	Data map[string]interface{} `json:"data"`
 }
 
 // Bearer creates IrisOptions that will replicate the session of the
@@ -170,6 +170,7 @@ func GetResponse(res *http.Response, v interface{}) error {
 	config := &mapstructure.DecoderConfig{
 		WeaklyTypedInput: true,
 		Result:           &v,
+		TagName:          "json",
 	}
 
 	decoder, err := mapstructure.NewDecoder(config)
