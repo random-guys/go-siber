@@ -116,5 +116,5 @@ func getAuthorization(r *http.Request) (scheme, token string) {
 		})
 	}
 
-	return splitAuth[0], splitAuth[1]
+	return strings.TrimSpace(splitAuth[0]), splitAuth[1]
 }
