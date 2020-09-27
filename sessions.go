@@ -35,11 +35,10 @@ func (s *SessionStore) Load(r *http.Request, session interface{}) {
 
 	scheme, token := getAuthorization(r)
 
-	if scheme != s.scheme && scheme != "bearer" {
+	if scheme != s.scheme && scheme != "Bearer" {
 		panic(JSendError{
 			Code:    http.StatusUnauthorized,
 			Message: ErrUnsupportedScheme.Error(),
-			Err:     ErrUnsupportedScheme,
 		})
 	}
 
@@ -51,7 +50,7 @@ func (s *SessionStore) Load(r *http.Request, session interface{}) {
 		})
 	}
 
-	if scheme == "bearer" {
+	if scheme == "Bearer" {
 		err = s.store.Extend(token, s.timeout, session)
 	} else {
 		err = jwt.DecodeEmbedded(s.secret, []byte(token), session)
@@ -118,9 +117,8 @@ func getAuthorization(r *http.Request) (scheme, token string) {
 		panic(JSendError{
 			Code:    http.StatusUnauthorized,
 			Message: ErrAuthorisationFormat.Error(),
-			Err:     ErrAuthorisationFormat,
 		})
 	}
 
-	return strings.ToLower(splitAuth[0]), splitAuth[1]
+	return splitAuth[0], splitAuth[1]
 }
