@@ -27,8 +27,8 @@ type Config struct {
 	HeadlessDuration time.Duration
 }
 
-func New(conf Config) Client {
-	if conf.Service != "" {
+func NewClient(conf Config) Client {
+	if conf.Service == "" {
 		panic(errors.New("x-origins-service will be empty"))
 	}
 
@@ -70,7 +70,7 @@ func (c *Client) BearerToken(r *http.Request) (Token, error) {
 	auth := strings.Split(r.Header.Get("Authorization"), " ")
 
 	if len(auth) != 2 {
-		return Token{}, errors.New("authorization header value is incorrect")
+		return Token{}, fmt.Errorf("authorization header value is incorrect: %s", r.Header.Get("Authorization"))
 	}
 
 	return Token{strings.TrimSpace(auth[1]), false}, nil
