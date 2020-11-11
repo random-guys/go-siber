@@ -70,11 +70,9 @@ type jSendSuccess struct {
 	Data map[string]interface{} `json:"data"`
 }
 
-// Bearer creates IrisOptions that will replicate the session of the
-// source request passed to it. Do make sure the request has
-// authorization header set.
-func (c Client) Bearer(r *http.Request) (*Client, error) {
-	auth := strings.Split(r.Header.Get("Authorization"), "")
+// BearerToken sets the token to the session token store in the passed request
+func (c *Client) BearerToken(r *http.Request) (Token, error) {
+	auth := strings.Split(r.Header.Get("Authorization"), " ")
 
 	if len(auth) != 2 {
 		return nil, errors.New("Authorization header value is incorrect")
