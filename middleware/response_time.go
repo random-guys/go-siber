@@ -16,7 +16,7 @@ const ResponseTimeHeader = "X-Response-Time"
 
 // ResponseTime adds a "X-Response-Time" header once the handler
 // writes the header of the response.
-func ResponeTime(next http.Handler) http.Handler {
+func ResponseTime(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ww := newWriter(w, r.ProtoMajor)
 		next.ServeHTTP(ww, r)
