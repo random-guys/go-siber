@@ -1,4 +1,4 @@
-package siber
+package jsend
 
 import (
 	"bytes"
@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/random-guys/go-siber/responses"
 	"github.com/rs/zerolog"
 )
 
@@ -14,42 +15,32 @@ type jsendSuccess struct {
 	Data interface{} `json:"data"`
 }
 
-func Send(w http.ResponseWriter, code int, data []byte) {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.Header().Set("X-Content-Type-Options", "nosniff")
-
-	w.WriteHeader(code)
-	_, err := w.Write(data)
-	if err != nil {
-		panic(err)
-	}
-}
-
-// SendSuccess sends a JSON success message with status code 200
-func SendSuccess(r *http.Request, w http.ResponseWriter, v interface{}) {
+// Success sends a JSend success message with status code 200. It logs the response
+// if a zerolog.Logger is attached to the request.
+func Success(r *http.Request, w http.ResponseWriter, v interface{}) {
 	log := zerolog.Ctx(r.Context())
 	raw := getJSON(log, jsendSuccess{http.StatusOK, v})
 
-	Send(w, http.StatusOK, raw)
+	responses.Send(w, http.StatusOK, raw)
 
 	log.Info().
 		Int("status", http.StatusOK).
 		Int("length", len(raw)).
-		Interface("response_headers", NormaliseHeader(w.Header())).
+		Interface("response_headers", toLower(w.Header())).
 		Msg("")
 }
 
-// SendError sends a JSON error message
-func SendError(r *http.Request, w http.ResponseWriter, err JSendError) {
+// Error sends a JSend error message. It logs the response if a zerolog.Logger is attached to the request.
+func Error(r *http.Request, w http.ResponseWriter, err Err) {
 	log := zerolog.Ctx(r.Context())
 	raw := getJSON(log, err)
 
-	Send(w, err.Code, raw)
+	responses.Send(w, err.Code, raw)
 
 	log.Err(err).
 		Int("status", err.Code).
 		Int("length", len(raw)).
-		Interface("response_headers", NormaliseHeader(w.Header())).
+		Interface("response_headers", toLower(w.Header())).
 		Msg("")
 }
 
@@ -72,9 +63,7 @@ func getJSON(log *zerolog.Logger, v interface{}) []byte {
 	return raw
 }
 
-// NormaliseHeader extracts the headers into a map and converts all single value
-// headers to the value directly rather than a slice of single value string
-func NormaliseHeader(headers http.Header) map[string]interface{} {
+func toLower(headers http.Header) map[string]interface{} {
 	lowerCaseHeaders := make(map[string]interface{})
 
 	for k, v := range headers {

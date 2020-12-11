@@ -6,13 +6,20 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
-	"github.com/random-guys/go-siber"
+	"github.com/random-guys/go-siber/jsend"
 	"github.com/random-guys/go-siber/jwt"
+)
+
+var (
+	// ErrNoRequestID is returned when the parent request doesn't have a request ID
+	ErrNoRequestID = errors.New("no request id")
+	// ErrNoAuthentication is returned when there's no authentication information
+	// attached to the parent request
+	ErrNoAuthentication = errors.New("no authentication")
 )
 
 type Config struct {
@@ -56,47 +63,21 @@ type Client struct {
 	headlessDuration time.Duration
 }
 
-type Token struct {
-	value    string
-	headless bool
-}
-
 type jSendSuccess struct {
 	Data map[string]interface{} `json:"data"`
 }
 
-// BearerToken sets the token to the session token store in the passed request
-func (c *Client) BearerToken(r *http.Request) (Token, error) {
-	auth := strings.Split(r.Header.Get("Authorization"), " ")
-
-	if len(auth) != 2 {
-		return Token{}, fmt.Errorf("authorization header value is incorrect: %s", r.Header.Get("Authorization"))
-	}
-
-	return Token{strings.TrimSpace(auth[1]), false}, nil
-}
-
-// HeadlessToken creates a token to be used with the client's scheme
-func (c *Client) HeadlessToken(v interface{}) (Token, error) {
-	token, err := jwt.EncodeEmbedded(c.serviceSecret, c.headlessDuration, v)
-	if err != nil {
-		return Token{}, err
-	}
-
-	return Token{token, true}, nil
-}
-
-// NewRequest is a wrapper around http.NNewRequest that adds the required
-// headers for distributed tracing. The requests will only last as long as the parent
-// request(it uses the request's context)
-func (c *Client) NewRequest(r *http.Request, method, url string, token Token, body io.Reader) (*http.Request, error) {
+// NewRequest is a wrapper around http.NewRequest that proxies the authentication and enables
+// distributed tracing. Note this request lasts as long as the parent request.
+func (c *Client) NewRequest(r *http.Request, method, url string, body io.Reader) (*http.Request, error) {
 	reqId := r.Header.Get("X-Request-Id")
 	if reqId == "" {
-		return nil, errors.New("request ID not set on base request")
+		return nil, ErrNoRequestID
 	}
 
-	if token.value == "" {
-		return nil, errors.New("authentication token is not set")
+	auth := r.Header.Get("Authorization")
+	if auth == "" {
+		return nil, ErrNoAuthentication
 	}
 
 	req, err := http.NewRequestWithContext(r.Context(), method, url, body)
@@ -104,30 +85,46 @@ func (c *Client) NewRequest(r *http.Request, method, url string, token Token, bo
 		return nil, err
 	}
 
-	var scheme string
-	if token.headless {
-		scheme = c.headlessScheme
-	} else {
-		scheme = "Bearer"
-	}
-
 	req.Header.Set("X-Origin-Service", c.serviceName)
 	req.Header.Set("X-Request-Id", reqId)
-	req.Header.Set("Authorization", fmt.Sprintf("%s %s", scheme, token.value))
+	req.Header.Set("Authorization", auth)
 
 	return req, nil
 }
 
-// NewRequestWitchContext is the same as NewRequest, only the user can now control
-// how long before the request times out.
-func (c *Client) NewRequestWithContext(ctx context.Context, r *http.Request, method, url string, token Token, body io.Reader) (*http.Request, error) {
+// NewHeadlessRequest is like NewRequest but it replaces the request authentication mechanism with
+// an headless one, giving users control over what would pass for the session on the receiving server.
+func (c *Client) NewHeadlessRequest(r *http.Request, method, url string, session interface{}, body io.Reader) (*http.Request, error) {
 	reqId := r.Header.Get("X-Request-Id")
 	if reqId == "" {
-		return nil, errors.New("request ID not set on base request")
+		return nil, ErrNoRequestID
 	}
 
-	if token.value == "" {
-		return nil, errors.New("authentication token is not set")
+	token, err := jwt.EncodeEmbedded(c.serviceSecret, c.headlessDuration, session)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not create headless token")
+	}
+
+	req, err := http.NewRequestWithContext(r.Context(), method, url, body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("X-Origin-Service", c.serviceName)
+	req.Header.Set("X-Request-Id", reqId)
+	req.Header.Set("Authorization", fmt.Sprintf("%s %s", c.headlessScheme, token))
+
+	return req, nil
+}
+
+// NewHeadlessRequest is like NewRequest but it replaces the request authentication mechanism with
+// an headless one, giving users control over what would pass for the session on the receiving server.
+func (c *Client) NewBaseRequest(ctx context.Context, method, url string, session interface{}, body io.Reader) (*http.Request, error) {
+	reqId := NextRequestID()
+
+	token, err := jwt.EncodeEmbedded(c.serviceSecret, c.headlessDuration, session)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not create headless token")
 	}
 
 	req, err := http.NewRequestWithContext(ctx, method, url, body)
@@ -135,16 +132,9 @@ func (c *Client) NewRequestWithContext(ctx context.Context, r *http.Request, met
 		return nil, err
 	}
 
-	var scheme string
-	if token.headless {
-		scheme = c.headlessScheme
-	} else {
-		scheme = "Bearer"
-	}
-
 	req.Header.Set("X-Origin-Service", c.serviceName)
 	req.Header.Set("X-Request-Id", reqId)
-	req.Header.Set("Authorization", fmt.Sprintf("%s %s", scheme, token.value))
+	req.Header.Set("Authorization", fmt.Sprintf("%s %s", c.headlessScheme, token))
 
 	return req, nil
 }
@@ -154,7 +144,7 @@ func GetErr(res *http.Response) error {
 		return nil
 	}
 
-	var err siber.JSendError
+	var err jsend.Err
 	if err := json.NewDecoder(res.Body).Decode(&err); err != nil {
 		return err
 	}
