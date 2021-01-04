@@ -11,6 +11,7 @@ import (
 
 	"github.com/go-chi/chi"
 	"github.com/random-guys/go-siber/json"
+	"github.com/random-guys/go-siber/jwt"
 	"github.com/random-guys/go-siber/requests"
 	"github.com/rs/zerolog"
 )
@@ -107,17 +108,33 @@ func TestHeadless(t *testing.T) {
 		_, _ = w.Write([]byte("."))
 	})
 
-	res := httptest.NewRecorder()
-	req := httptest.NewRequest("GET", "/", nil)
-	router.ServeHTTP(res, req)
+	t.Run("panics with 401", func(t *testing.T) {
+		res := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", "/", nil)
+		router.ServeHTTP(res, req)
 
-	resp := Err{}
-	err := json.Unmarshal(res.Body.Bytes(), &resp)
-	if err != nil {
-		t.Fatal(err)
-	}
+		if res.Code != http.StatusUnauthorized {
+			t.Errorf("Expected the status code to be %d, got %d", http.StatusUnauthorized, res.Code)
+		}
+	})
 
-	if resp.Code != http.StatusUnauthorized {
-		t.Errorf("Expected the status code to be %d, got %d", http.StatusUnauthorized, resp.Code)
-	}
+	t.Run("panics with 401", func(t *testing.T) {
+		type session struct {
+			Name string
+		}
+
+		token, err := jwt.EncodeStruct([]byte(secret), time.Minute, session{"Premium"})
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		res := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", "/", nil)
+		req.Header.Set("Authorization", scheme+" "+token)
+		router.ServeHTTP(res, req)
+
+		if res.Code != http.StatusOK {
+			t.Errorf("Expected the status code to be %d, got %d", http.StatusOK, res.Code)
+		}
+	})
 }
