@@ -10,6 +10,7 @@ import (
 
 	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
+	"github.com/random-guys/go-siber"
 	"github.com/random-guys/go-siber/jsend"
 	"github.com/random-guys/go-siber/jwt"
 )
@@ -113,6 +114,35 @@ func (c *Client) NewHeadlessRequest(r *http.Request, method, url string, session
 	req.Header.Set("X-Origin-Service", c.serviceName)
 	req.Header.Set("X-Request-Id", reqId)
 	req.Header.Set("Authorization", fmt.Sprintf("%s %s", c.headlessScheme, token))
+
+	return req, nil
+}
+
+// NewSecureHeadlessRequest is NewHeadlessRequest with an encrypted token
+func (c *Client) NewSecureHeadlessRequest(r *http.Request, method, url string, session interface{}, body io.Reader) (*http.Request, error) {
+	reqId := r.Header.Get("X-Request-Id")
+	if reqId == "" {
+		return nil, ErrNoRequestID
+	}
+
+	token, err := jwt.EncodeEmbedded(c.serviceSecret, c.headlessDuration, session)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not create headless token")
+	}
+
+	encToken, err := siber.Encrypt(c.serviceSecret, []byte(token))
+	if err != nil {
+		return nil, errors.Wrap(err, "could not create encrypt token")
+	}
+
+	req, err := http.NewRequestWithContext(r.Context(), method, url, body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("X-Origin-Service", c.serviceName)
+	req.Header.Set("X-Request-Id", reqId)
+	req.Header.Set("Authorization", fmt.Sprintf("%s %s", c.headlessScheme, string(encToken)))
 
 	return req, nil
 }
