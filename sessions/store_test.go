@@ -166,7 +166,7 @@ func TestLoadHeadless(t *testing.T) {
 	})
 }
 
-func TestLoadHeadlessSecure(t *testing.T) {
+func TestLoadSecureHeadless(t *testing.T) {
 	type session struct {
 		Name string
 	}

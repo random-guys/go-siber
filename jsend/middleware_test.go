@@ -118,11 +118,12 @@ func TestHeadless(t *testing.T) {
 		}
 	})
 
-	t.Run("panics with 401", func(t *testing.T) {
+	t.Run("loads the token successfully", func(t *testing.T) {
 		type session struct {
 			Name string
 		}
 
+		// doesn't have to be embedded since it's not used
 		token, err := jwt.EncodeStruct([]byte(secret), time.Minute, session{"Premium"})
 		if err != nil {
 			t.Fatal(err)
