@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/random-guys/go-siber"
 	"github.com/random-guys/go-siber/jwt"
 	"github.com/random-guys/go-siber/tokens"
 )
@@ -62,6 +63,25 @@ func (s *Store) LoadHeadless(r *http.Request, v interface{}) error {
 	}
 
 	return jwt.DecodeEmbedded(s.secret, []byte(token), v)
+}
+
+// LoadSecureHeadless is like LoadHeadless but with support for decryption based off sealbox algorithm.
+func (s *Store) LoadSecureHeadless(r *http.Request, v interface{}) error {
+	scheme, encToken, err := getAuthorization(r)
+	if err != nil {
+		return err
+	}
+
+	if scheme != s.scheme {
+		return ErrUnsupportedScheme
+	}
+
+	token, err := siber.Decrypt(s.secret, encToken)
+	if err != nil {
+		return err
+	}
+
+	return jwt.DecodeEmbedded(s.secret, token, v)
 }
 
 // Load trys both LoadBearer and LoadHeadless.

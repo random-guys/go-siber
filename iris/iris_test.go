@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/random-guys/go-siber"
 	"github.com/random-guys/go-siber/jwt"
 	"syreclabs.com/go/faker"
 )
@@ -166,6 +167,58 @@ func TestNewHeadlessRequest(t *testing.T) {
 
 		if !errors.Is(err, context.DeadlineExceeded) {
 			t.Errorf("Expected request to fail because deadline was exceeded, got %v", err)
+		}
+	})
+}
+
+func TestNewSecureHeadlessRequest(t *testing.T) {
+	t.Run("sets the right headers", func(t *testing.T) {
+		type session struct{ User string }
+
+		requestID := faker.Lorem().Characters(16)
+		service := "user-service"
+		scheme := "Test"
+
+		req := httptest.NewRequest("GEt", "/", nil)
+		req.Header.Set("Authorization", "Bearer "+faker.Lorem().Characters(32))
+		req.Header.Set("X-Request-ID", requestID)
+
+		client := NewClient(Config{
+			Secret:         []byte("secret"),
+			Service:        service,
+			HeadlessScheme: scheme,
+		})
+
+		sput := session{uuid.New().String()}
+		req2, err := client.NewSecureHeadlessRequest(req, "GET", "/internal", sput, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if req2.Header.Get("X-Request-ID") != requestID {
+			t.Errorf("Expected request ID to be %s, got %s", requestID, req2.Header.Get("X-Request-ID"))
+		}
+
+		if req2.Header.Get("X-Origin-Service") != service {
+			t.Errorf("Expected origin service of request to be %s, got %s", service, req2.Header.Get("X-Origin-Service"))
+		}
+
+		header := strings.Fields(req2.Header.Get("Authorization"))
+		if header[0] != scheme {
+			t.Errorf("Expected authorisation scheme to be %s, got %s", scheme, header[0])
+		}
+
+		decToken, err := siber.Decrypt(client.serviceSecret, header[1])
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		var sget session
+		if err := jwt.DecodeEmbedded(client.serviceSecret, decToken, &sget); err != nil {
+			t.Fatal(err)
+		}
+		if sput.User != sget.User {
+			t.Errorf("Expected user ID in session to be %s, got %s", sput.User, sget.User)
 		}
 	})
 }
