@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 
+	json2 "github.com/random-guys/go-siber/json"
 	"github.com/random-guys/go-siber/responses"
 	"github.com/rs/zerolog"
 )
@@ -45,7 +46,7 @@ func Error(r *http.Request, w http.ResponseWriter, err Err) {
 }
 
 func getJSON(log *zerolog.Logger, v interface{}) []byte {
-	raw, _ := json.Marshal(v)
+	raw, _ := json2.Marshal(v)
 
 	// log API responses
 	if v != nil {

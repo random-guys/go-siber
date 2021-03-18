@@ -2,7 +2,6 @@ package iris
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -12,6 +11,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/random-guys/go-siber"
 	"github.com/random-guys/go-siber/jsend"
+	"github.com/random-guys/go-siber/json"
 	"github.com/random-guys/go-siber/jwt"
 )
 
