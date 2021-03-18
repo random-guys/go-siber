@@ -118,11 +118,12 @@ func TestHeadless(t *testing.T) {
 		}
 	})
 
-	t.Run("panics with 401", func(t *testing.T) {
+	t.Run("loads the token successfully", func(t *testing.T) {
 		type session struct {
 			Name string
 		}
 
+		// doesn't have to be embedded since it's not used
 		token, err := jwt.EncodeStruct([]byte(secret), time.Minute, session{"Premium"})
 		if err != nil {
 			t.Fatal(err)
@@ -134,6 +135,34 @@ func TestHeadless(t *testing.T) {
 		router.ServeHTTP(res, req)
 
 		if res.Code != http.StatusOK {
+			t.Errorf("Expected the status code to be %d, got %d", http.StatusOK, res.Code)
+		}
+	})
+}
+
+func TestSecureHeadless(t *testing.T) {
+	router := chi.NewRouter()
+	router.Use(Recoverer("production"))
+	router.With(SecureHeadless(store)).Get("/", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte("."))
+	})
+
+	t.Run("panics with 401", func(t *testing.T) {
+		type session struct {
+			Name string
+		}
+
+		token, err := jwt.EncodeEmbedded([]byte(secret), time.Minute, session{"Premium"})
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		res := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", "/", nil)
+		req.Header.Set("Authorization", scheme+" "+token)
+		router.ServeHTTP(res, req)
+
+		if res.Code != http.StatusUnauthorized {
 			t.Errorf("Expected the status code to be %d, got %d", http.StatusOK, res.Code)
 		}
 	})
