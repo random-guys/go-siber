@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/go-redis/redis/v8"
+	"github.com/random-guys/go-siber"
 	"github.com/random-guys/go-siber/jwt"
 	"github.com/random-guys/go-siber/tokens"
 )
@@ -161,6 +162,52 @@ func TestLoadHeadless(t *testing.T) {
 
 		if err != ErrUnsupportedScheme {
 			t.Errorf("Expected error from LoadHeadless to be ErrUnsupportedScheme, got %s", err)
+		}
+	})
+}
+
+func TestLoadHeadlessSecure(t *testing.T) {
+	type session struct {
+		Name string
+	}
+
+	store := NewStore(secret, scheme, time.Minute, sharedTestStore)
+
+	t.Run("loads the secure headless session", func(t *testing.T) {
+		token, err := jwt.EncodeEmbedded(secret, time.Minute, session{"Premium"})
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		encToken, err := siber.Encrypt(secret, []byte(token))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		req := httptest.NewRequest("GET", "/entities", nil)
+		req.Header.Set("Authorization", scheme+" "+string(encToken))
+
+		var s session
+		if err := store.LoadSecureHeadless(req, &s); err != nil {
+			t.Fatal(err)
+		}
+
+		if s.Name != "Premium" {
+			t.Errorf(`Expected name in session to be "%s", got %s`, "Premium", s.Name)
+		}
+	})
+
+	t.Run("fails when session is not encrypted", func(t *testing.T) {
+		token, err := jwt.EncodeEmbedded(secret, time.Minute, session{"Premium"})
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		req := httptest.NewRequest("GET", "/entities", nil)
+		req.Header.Set("Authorization", scheme+" "+token)
+
+		if err := store.LoadSecureHeadless(req, &session{}); err == nil {
+			t.Error("Expected LoadSecureHeadless to fail with error")
 		}
 	})
 }
