@@ -84,6 +84,45 @@ func TestLoadHeadless(t *testing.T) {
 	})
 }
 
+func TestLoadSecureHeadless(t *testing.T) {
+	type void struct{}
+
+	t.Run("panics with empty header message", func(t *testing.T) {
+		message := "Your request is not authenticated"
+		defer checkErr(t, http.StatusUnauthorized, false, false, message)
+
+		req := httptest.NewRequest("GET", "/", nil)
+		LoadSecureHeadless(store, req, void{})
+	})
+
+	t.Run("panics with bad header format message", func(t *testing.T) {
+		message := "Your authorization header is incorrect"
+		defer checkErr(t, http.StatusUnauthorized, false, false, message)
+
+		req := httptest.NewRequest("GET", "/", nil)
+		req.Header.Set("Authorization", "Test southern cross")
+		LoadSecureHeadless(store, req, void{})
+	})
+
+	t.Run("panics with bad scheme message", func(t *testing.T) {
+		message := "We don't support your authorization scheme"
+		defer checkErr(t, http.StatusUnauthorized, false, false, message)
+
+		req := httptest.NewRequest("GET", "/", nil)
+		req.Header.Set("Authorization", "Bearer cross")
+		LoadSecureHeadless(store, req, void{})
+	})
+
+	t.Run("panics with invalid token message", func(t *testing.T) {
+		message := "Your token is either invalid or has expired"
+		defer checkErr(t, http.StatusUnauthorized, false, false, message)
+
+		req := httptest.NewRequest("GET", "/", nil)
+		req.Header.Set("Authorization", "Test southerncross")
+		LoadSecureHeadless(store, req, void{})
+	})
+}
+
 func checkErr(t *testing.T, code int, nilErr, nilData bool, message string) {
 	err := recover()
 	if err == nil {
